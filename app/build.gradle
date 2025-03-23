@@ -32,22 +32,17 @@ android {
         applicationId "com.thatguysservice.huami_xdrip"
         minSdk 24
         targetSdk 31
-
-        // Note: always bump BOTH versionCode and versionName!
-        versionName "0.4.2"
+        versionName "0.4.2.1"
         versionCode 26
         buildConfigField "long", "buildTimestamp", generateTimestamp()
-        buildConfigField "int", "targetSDK", targetSdkVersion.mApiLevel.toString()
+        buildConfigField "int", "targetSDK", targetSdk.toString()
 
         multiDexEnabled true
     }
 
     buildFeatures {
         buildConfig = true
-    }
-
-    dataBinding {
-        enabled = true
+        dataBinding = true
     }
 
     buildTypes {
@@ -60,19 +55,23 @@ android {
             shrinkResources false
             debuggable true
         }
-        applicationVariants.all {
-            variant ->
-                variant.outputs.each {
-                    output ->
-                        output.outputFileName = "WatchDrip_v${defaultConfig.versionName}.apk"
-                }
-        }
-
     }
+
+    applicationVariants.all { variant ->
+        println("Variant name: ${variant.name}")
+
+        variant.outputs.all { output ->
+            if (output.outputFileName != null && output.outputFileName.endsWith('.apk')) {
+                output.outputFileName = "WatchDrip_v${defaultConfig.versionName}-${variant.name}.apk"
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
     externalNativeBuild {
         cmake {
             path file('src/main/c/CMakeLists.txt')
