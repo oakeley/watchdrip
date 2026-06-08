@@ -1603,7 +1603,7 @@ public class MiBandService extends BaseBluetoothSequencer {
     public void writeToConfiguration(byte[] data) {
         if (useV2ChunkedProtocol) {
             data = ArrayUtils.insert(0, data, (byte) 1);
-            writeToChunkedV2(OperationCodes.CHUNKED_V2_ENDPOINT_COMPAT, getNextHandle(), data, true);
+            writeToChunkedV2(OperationCodes.CHUNKED_V2_ENDPOINT_COMPAT, getNextHandle(), data, sharedSessionKey != null);
         } else {
             I.connection.writeCharacteristic(Const.UUID_CHARACTERISTIC_3_CONFIGURATION, data)
                     .subscribe(val -> {
@@ -1637,6 +1637,10 @@ public class MiBandService extends BaseBluetoothSequencer {
         int header_size = 11;
 
         if (encrypt) {
+            if (sharedSessionKey == null) {
+                UserError.Log.e(TAG, "writeToChunkedV2: sharedSessionKey is null, cannot encrypt");
+                return;
+            }
             byte[] messagekey = new byte[16];
             for (int i = 0; i < 16; i++) {
                 messagekey[i] = (byte) (sharedSessionKey[i] ^ handle);
