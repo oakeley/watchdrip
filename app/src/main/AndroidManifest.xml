@@ -101,6 +101,14 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name=".receivers.AapsStatusReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="info.nightscout.androidaps.status" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".receivers.AutoStart"
             android:exported="true">
             <intent-filter>
