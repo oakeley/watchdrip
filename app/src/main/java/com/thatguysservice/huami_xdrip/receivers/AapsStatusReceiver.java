@@ -5,15 +5,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.thatguysservice.huami_xdrip.UtilityModels.BgGraphCompontens;
 import com.thatguysservice.huami_xdrip.models.database.UserError;
 import com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry;
+
+import org.json.JSONObject;
 
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_UPDATE_BG_FORCE;
 
 /**
  * Consumes AndroidAPS's "info.nightscout.androidaps.status" broadcast (sent by
- * its Tizen sync plugin) and feeds the reading into the same BG pipeline used
- * for xDrip+, so it can be relayed to the watch.
+ * its Tizen sync plugin)
  */
 public class AapsStatusReceiver extends BroadcastReceiver {
     private static final String TAG = AapsStatusReceiver.class.getSimpleName();
@@ -46,6 +48,24 @@ public class AapsStatusReceiver extends BroadcastReceiver {
             bgBundle.putString("bg.deltaName", slopeArrow);
             bgBundle.putBoolean("bg.isHigh", valueMgdl >= high);
             bgBundle.putBoolean("bg.isLow", valueMgdl <= low);
+
+            if (extras.containsKey("pumpReservoir") || extras.containsKey("iob") || extras.containsKey("pumpBattery")) {
+                JSONObject pumpJson = new JSONObject();
+                try {
+                    pumpJson.put("reservoir", extras.getDouble("pumpReservoir", -1));
+                    pumpJson.put("bolusiob", extras.getDouble("iob", -1)); // total IOB (bolus+basal)
+                    pumpJson.put("battery", extras.getInt("pumpBattery", -1));
+                } catch (Exception ignored) {
+                }
+                bgBundle.putString("pumpJSON", pumpJson.toString());
+            }
+
+            if (!AapsGraphCache.isEmpty()) {
+                bgBundle.putInt("fuzzer", BgGraphCompontens.FUZZER);
+                bgBundle.putLong("start", AapsGraphCache.oldestTimestamp());
+                bgBundle.putLong("end", AapsGraphCache.newestTimestamp());
+                bgBundle.putParcelable("graph.inRange", AapsGraphCache.buildGraphLine());
+            }
 
             UserError.Log.d(TAG, "Received AAPS status broadcast, BG: " + valueMgdl);
             MiBandEntry.sendToService(CMD_UPDATE_BG_FORCE, bgBundle);

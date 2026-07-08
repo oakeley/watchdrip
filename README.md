@@ -27,8 +27,8 @@ Configuration tutorial
 https://bigdigital.home.blog/2022/06/16/watchdrip-a-new-application-for-xdrip-watch-integration/
 
 ZEPP OS based devices
-Amazfit GTR3 PRO
-Amazfit Falcon
+
+
 
 Configuration tutorial
 https://bigdigital.home.blog/2022/12/21/zepp-os-devices-support/

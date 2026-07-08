@@ -109,6 +109,14 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name=".receivers.AapsSgvReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="info.nightscout.client.NEW_SGV" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".receivers.AutoStart"
             android:exported="true">
             <intent-filter>
