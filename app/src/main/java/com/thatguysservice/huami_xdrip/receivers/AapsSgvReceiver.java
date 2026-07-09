@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+import com.thatguysservice.huami_xdrip.models.aaps.AapsGraphCache;
 import com.thatguysservice.huami_xdrip.models.database.UserError;
 
 import org.json.JSONArray;

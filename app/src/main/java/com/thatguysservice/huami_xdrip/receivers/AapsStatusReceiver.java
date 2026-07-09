@@ -6,6 +6,10 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import com.thatguysservice.huami_xdrip.UtilityModels.BgGraphCompontens;
+import com.thatguysservice.huami_xdrip.models.Constants;
+import com.thatguysservice.huami_xdrip.models.aaps.AapsGraphCache;
+import com.thatguysservice.huami_xdrip.models.aaps.AapsStatusLineCache;
+import com.thatguysservice.huami_xdrip.models.aaps.AapsTreatmentCache;
 import com.thatguysservice.huami_xdrip.models.database.UserError;
 import com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry;
 
@@ -38,6 +42,19 @@ public class AapsStatusReceiver extends BroadcastReceiver {
             double high = extras.getDouble("high", Double.MAX_VALUE);
             double low = extras.getDouble("low", -Double.MAX_VALUE);
             boolean doMgdl = !"mmol".equalsIgnoreCase(extras.getString("units", "mg/dl"));
+            // AAPS reports high/low in whatever unit it's currently displaying
+            // (see Preferences.get(UnitDoubleKey), which calls
+            // valueInCurrentUnitsDetect()) - unlike glucoseMgdl, which is
+            // always mg/dl. Normalize so every mg/dl comparison below is
+            // apples-to-apples.
+            if (!doMgdl) {
+                if (extras.containsKey("high")) {
+                    high *= Constants.MMOLL_TO_MGDL;
+                }
+                if (extras.containsKey("low")) {
+                    low *= Constants.MMOLL_TO_MGDL;
+                }
+            }
 
             Bundle bgBundle = new Bundle();
             bgBundle.putDouble("bg.valueMgdl", valueMgdl);
@@ -60,13 +77,35 @@ public class AapsStatusReceiver extends BroadcastReceiver {
                 bgBundle.putString("pumpJSON", pumpJson.toString());
             }
 
+            if (timeStamp > 0) {
+                AapsGraphCache.addReading(timeStamp, valueMgdl);
+            }
+
             if (!AapsGraphCache.isEmpty()) {
                 bgBundle.putInt("fuzzer", BgGraphCompontens.FUZZER);
                 bgBundle.putLong("start", AapsGraphCache.oldestTimestamp());
                 bgBundle.putLong("end", AapsGraphCache.newestTimestamp());
-                bgBundle.putParcelable("graph.inRange", AapsGraphCache.buildInRangeLine(low, high));
-                bgBundle.putParcelable("graph.low", AapsGraphCache.buildLowLine(low));
-                bgBundle.putParcelable("graph.high", AapsGraphCache.buildHighLine(high));
+                bgBundle.putParcelable("graph.inRange", AapsGraphCache.buildInRangeLine(low, high, doMgdl));
+                bgBundle.putParcelable("graph.low", AapsGraphCache.buildLowLine(low, doMgdl));
+                bgBundle.putParcelable("graph.high", AapsGraphCache.buildHighLine(high, doMgdl));
+                bgBundle.putParcelable("graph.lowLine", AapsGraphCache.buildLowThresholdLine(low, doMgdl));
+                bgBundle.putParcelable("graph.highLine", AapsGraphCache.buildHighThresholdLine(high, doMgdl));
+            }
+
+            String statusLine = AapsStatusLineCache.getStatusLine();
+            if (statusLine != null) {
+                bgBundle.putString("external.statusLine", statusLine);
+                bgBundle.putLong("external.timeStamp", AapsStatusLineCache.getTimestamp());
+            }
+
+            // Note: intentionally not setting "predict.IOB"/"predict.BWP" here -
+            // those are xDrip+'s own computed predictions, not something AAPS
+            // broadcasts directly, and DisplayData/WebServiceTreatment already
+            // handle them being absent gracefully.
+            if (AapsTreatmentCache.getTimestamp() > 0) {
+                bgBundle.putDouble("treatment.insulin", AapsTreatmentCache.getInsulin());
+                bgBundle.putDouble("treatment.carbs", AapsTreatmentCache.getCarbs());
+                bgBundle.putLong("treatment.timeStamp", AapsTreatmentCache.getTimestamp());
             }
 
             UserError.Log.d(TAG, "Received AAPS status broadcast, BG: " + valueMgdl);

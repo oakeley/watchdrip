@@ -122,6 +122,22 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name=".receivers.AapsExternalStatusLineReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.eveningoutpost.dexdrip.ExternalStatusline" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receivers.AapsTreatmentReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="info.nightscout.client.NEW_FOOD" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".receivers.AutoStart"
             android:exported="true">
             <intent-filter>
