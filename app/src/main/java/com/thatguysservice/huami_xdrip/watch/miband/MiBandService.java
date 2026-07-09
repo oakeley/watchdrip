@@ -20,7 +20,6 @@ import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCA
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_REFRESH;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_UPDATE_BG_AS_NOTIFICATION;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_WATCHDOG;
-import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_XDRIP_APP_GOT_RESPONSE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_XDRIP_APP_NO_RESPONSE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_MESSAGE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_REPLY_MSG;
@@ -36,7 +35,6 @@ import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_T
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_TYPE_CANCEL;
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_TYPE_MESSAGE;
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.PREFERRED_MTU_SIZE;
-import static com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry.isForceNewProtocol;
 import static com.thatguysservice.huami_xdrip.watch.miband.message.OperationCodes.COMMAND_ACK_FIND_PHONE_IN_PROGRESS;
 import static com.thatguysservice.huami_xdrip.watch.miband.message.OperationCodes.COMMAND_DISABLE_CALL;
 
@@ -68,12 +66,14 @@ import com.thatguysservice.huami_xdrip.models.Constants;
 import com.thatguysservice.huami_xdrip.models.DeviceInfo;
 import com.thatguysservice.huami_xdrip.models.Helper;
 import com.thatguysservice.huami_xdrip.models.StatisticInfo;
+import com.thatguysservice.huami_xdrip.models.TimeInRangeTracker;
 import com.thatguysservice.huami_xdrip.models.database.UserError;
 import com.thatguysservice.huami_xdrip.models.webservice.WebServiceData;
 import com.thatguysservice.huami_xdrip.repository.BgDataRepository;
 import com.thatguysservice.huami_xdrip.services.BaseBluetoothSequencer;
 import com.thatguysservice.huami_xdrip.services.BroadcastService;
 import com.thatguysservice.huami_xdrip.services.XiaomiWearService;
+import com.thatguysservice.huami_xdrip.services.GarminService;
 import com.thatguysservice.huami_xdrip.utils.Version;
 import com.thatguysservice.huami_xdrip.utils.bt.Subscription;
 import com.thatguysservice.huami_xdrip.utils.framework.PoorMansConcurrentLinkedDeque;
@@ -138,7 +138,6 @@ public class MiBandService extends BaseBluetoothSequencer {
     private static final int CGI_WAIT_TIMEOUT = (int) (Constants.SECOND_IN_MS * 5);
     private static final int CGI_WAIT_DELAY = 100;
     static BatteryInfo batteryInfo = new BatteryInfo();
-    static private long bgWakeupTime;
 
     static {
         huntCharacterstics.add(Const.UUID_CHAR_HEART_RATE_MEASUREMENT);
@@ -175,6 +174,9 @@ public class MiBandService extends BaseBluetoothSequencer {
     private Bundle latestBgDataBundle;
     private WebServer webServer;
     private boolean isConnectionStopped = true;
+
+    private final TimeInRangeTracker tirTracker = new TimeInRangeTracker();
+
     private WebServer.CommonGatewayInterface CGI_getInfoResponse = new WebServer.CommonGatewayInterface() {
         @Override
         public String run(Map<String, List<String>> params) {
@@ -185,11 +187,11 @@ public class MiBandService extends BaseBluetoothSequencer {
             boolean includeGraph = false;
             if (params.containsKey("graph")) {
                 List<String> graph = params.get("graph");
-                if (graph.get(0).equals("1")) {
+                if (graph != null && !graph.isEmpty() && "1".equals(graph.get(0))) {
                     includeGraph = true;
                 }
             }
-            return new WebServiceData(bgDataLatest, latestBgDataBundle, includeGraph).getGson();
+            return new WebServiceData(bgDataLatest, latestBgDataBundle, includeGraph, tirTracker.getLowRange(), tirTracker.getInRange(), tirTracker.getHighRange()).getGson();
         }
     };
 
@@ -200,13 +202,21 @@ public class MiBandService extends BaseBluetoothSequencer {
             Double carbs = 0.0;
             Double insulin = 0.0;
             try {
-                carbs = Double.valueOf(params.get("carbs").get(0));
+                List<String> carbParams = params.get("carbs");
+                if (carbParams != null && !carbParams.isEmpty()) {
+                    carbs = Double.valueOf(carbParams.get(0));
+                }
             } catch (Exception e) {
+                UserError.Log.e(TAG, "Error parsing carbs: " + e.getMessage());
             }
 
             try {
-                insulin = Double.valueOf(params.get("insulin").get(0));
+                List<String> insulinParams = params.get("insulin");
+                if (insulinParams != null && !insulinParams.isEmpty()) {
+                    insulin = Double.valueOf(insulinParams.get(0));
+                }
             } catch (Exception e) {
+                UserError.Log.e(TAG, "Error parsing insulin: " + e.getMessage());
             }
             if (addTreatment(carbs, insulin)) {
                 isWaitingAddTreatmentResponse = true;
@@ -293,6 +303,7 @@ public class MiBandService extends BaseBluetoothSequencer {
 
     @Override
     public void onDestroy() {
+        tirTracker.reset();
         UserError.Log.e(TAG, "Killing service ");
         stopWebServer();
         super.onDestroy();
@@ -345,6 +356,9 @@ public class MiBandService extends BaseBluetoothSequencer {
         final PowerManager.WakeLock wl = Helper.getWakeLock("Miband service", 60000);
         try {
             if (shouldServiceRun()) {
+
+                tirTracker.loadIfNeeded();
+
                 String function = null;
                 if (intent != null) {
                     function = intent.getStringExtra(INTENT_FUNCTION_KEY);
@@ -389,6 +403,7 @@ public class MiBandService extends BaseBluetoothSequencer {
                 } else {
                     stopConnection();
                 }
+
                 return START_STICKY;
             } else {
                 deactivateService();
@@ -649,7 +664,6 @@ public class MiBandService extends BaseBluetoothSequencer {
 
     private void stopBgUpdateTimer() {
         Helper.cancelAlarm(HuamiXdrip.getAppContext(), bgServiceIntent);
-        bgWakeupTime = 0;
         isNightMode = false;
     }
 
@@ -660,7 +674,6 @@ public class MiBandService extends BaseBluetoothSequencer {
             UserError.Log.d(TAG, "Scheduling next BgTimer in: " + Helper.niceTimeScalar(retry_in) + " @ " + Helper.dateTimeText(retry_in + Helper.tsl()));
             bgServiceIntent = WakeLockTrampoline.getPendingIntent(this.getClass(), Constants.MIBAND_SERVICE_BG_RETRY_ID, CMD_LOCAL_BG_FORCE_REMOTE);
             Helper.wakeUpIntent(HuamiXdrip.getAppContext(), retry_in, bgServiceIntent);
-            bgWakeupTime = Helper.tsl() + retry_in;
         } else {
             UserError.Log.d(TAG, "Retry timer was not scheduled");
         }
@@ -1761,10 +1774,16 @@ public class MiBandService extends BaseBluetoothSequencer {
         bgDataLatest = new BgData(bundle);
         bgDataRepository.setNewBgData(bgDataLatest);
         bgDataRepository.setNewConnectionState(HuamiXdrip.gs(R.string.xdrip_app_received_data));
+
+        tirTracker.update(bgDataLatest);
+
         if (!forceXiaomiService && isNightMode) {
             return;
         }
-        XiaomiWearService.bgForce(new WebServiceData(bgDataLatest, latestBgDataBundle, true).getGson());
+
+        String jsonString = new WebServiceData(bgDataLatest, latestBgDataBundle, true, tirTracker.getLowRange(), tirTracker.getInRange(), tirTracker.getHighRange()).getGson();
+        GarminService.bgForce(jsonString);
+        XiaomiWearService.bgForce(jsonString);
     }
 
     private void updateBgData() {
