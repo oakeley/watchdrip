@@ -64,7 +64,9 @@ public class AapsStatusReceiver extends BroadcastReceiver {
                 bgBundle.putInt("fuzzer", BgGraphCompontens.FUZZER);
                 bgBundle.putLong("start", AapsGraphCache.oldestTimestamp());
                 bgBundle.putLong("end", AapsGraphCache.newestTimestamp());
-                bgBundle.putParcelable("graph.inRange", AapsGraphCache.buildGraphLine());
+                bgBundle.putParcelable("graph.inRange", AapsGraphCache.buildInRangeLine(low, high));
+                bgBundle.putParcelable("graph.low", AapsGraphCache.buildLowLine(low));
+                bgBundle.putParcelable("graph.high", AapsGraphCache.buildHighLine(high));
             }
 
             UserError.Log.d(TAG, "Received AAPS status broadcast, BG: " + valueMgdl);

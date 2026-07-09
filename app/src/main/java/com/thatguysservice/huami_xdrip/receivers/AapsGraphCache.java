@@ -1,5 +1,7 @@
 package com.thatguysservice.huami_xdrip.receivers;
 
+import android.graphics.Color;
+
 import com.eveningoutpost.dexdrip.services.broadcastservice.models.GraphLine;
 import com.eveningoutpost.dexdrip.services.broadcastservice.models.GraphPoint;
 import com.thatguysservice.huami_xdrip.UtilityModels.BgGraphCompontens;
@@ -7,12 +9,20 @@ import com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
 /**
  * Holds the most recent glucose history received from AndroidAPS's "xdrip"
  */
 class AapsGraphCache {
+    // Default colors for the watch graph's value dots. These only apply when
+    // the active watchface's config.json doesn't define its own line colors -
+    // see BgGraphBuilder.applyLineSettings(), which overrides them when set.
+    private static final int COLOR_LOW = Color.RED;
+    private static final int COLOR_HIGH = Color.YELLOW;
+    private static final int COLOR_IN_RANGE = Color.BLUE;
+
     // Real CGM readings are ~5 min apart, so anything closer than this must be
     // the same reading arriving from a different broadcast (Tizen vs xdrip),
     // not a genuinely new sample.
@@ -76,14 +86,34 @@ class AapsGraphCache {
         return nearestKeyWithin(timestampMs, DEDUP_WINDOW_MS) != null;
     }
 
-    static synchronized GraphLine buildGraphLine() {
+    static synchronized GraphLine buildInRangeLine(double low, double high) {
+        return buildLine(low, high, COLOR_IN_RANGE);
+    }
+
+    static synchronized GraphLine buildLowLine(double low) {
+        return buildLine(-Double.MAX_VALUE, low, COLOR_LOW);
+    }
+
+    static synchronized GraphLine buildHighLine(double high) {
+        return buildLine(high, Double.MAX_VALUE, COLOR_HIGH);
+    }
+
+    // minInclusive/maxExclusive define the category: low is [-inf, low),
+    // inRange is [low, high), high is [high, +inf) - matches the >= high
+    // convention already used for the isHigh flag in AapsStatusReceiver.
+    private static GraphLine buildLine(double minInclusive, double maxExclusive, int color) {
         List<GraphPoint> points = new ArrayList<>();
-        for (java.util.Map.Entry<Long, Double> entry : readings.entrySet()) {
+        for (Map.Entry<Long, Double> entry : readings.entrySet()) {
+            double mgdl = entry.getValue();
+            if (mgdl < minInclusive || mgdl >= maxExclusive) {
+                continue;
+            }
             float x = (float) (entry.getKey() / (double) BgGraphCompontens.FUZZER);
             points.add(new GraphPoint(x, entry.getValue().floatValue()));
         }
         GraphLine line = new GraphLine();
         line.setValues(points);
+        line.setColor(color);
         return line;
     }
 
