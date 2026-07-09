@@ -4,10 +4,14 @@ import android.graphics.Color;
 
 import com.eveningoutpost.dexdrip.services.broadcastservice.models.GraphLine;
 import com.eveningoutpost.dexdrip.services.broadcastservice.models.GraphPoint;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.thatguysservice.huami_xdrip.UtilityModels.BgGraphBuilder;
 import com.thatguysservice.huami_xdrip.UtilityModels.BgGraphCompontens;
+import com.thatguysservice.huami_xdrip.models.PersistentStore;
 import com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +28,40 @@ public class AapsGraphCache {
 
     private static final long DEDUP_WINDOW_MS = 1L * 60 * 1000;
     private static final int READINGS_MAX = 500;
+    private static final String PREF_KEY = "aapsGraphReadings";
 
     private static final TreeMap<Long, Double> readings = new TreeMap<>();
+    private static boolean loaded = false;
+
+    // Persisted so a Watchdrip+ restart doesn't lose history: AAPS's xdrip
+    // plugin only sends *new* SGV entries since its last sync, not the full
+    // window, so without this the graph would only slowly refill after a
+    // reload instead of showing history immediately.
+    private static synchronized void ensureLoaded() {
+        if (loaded) {
+            return;
+        }
+        loaded = true;
+        try {
+            String json = PersistentStore.getString(PREF_KEY, null);
+            if (json != null) {
+                Type type = new TypeToken<TreeMap<Long, Double>>() {
+                }.getType();
+                TreeMap<Long, Double> stored = new Gson().fromJson(json, type);
+                if (stored != null) {
+                    readings.putAll(stored);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void persist() {
+        try {
+            PersistentStore.setString(PREF_KEY, new Gson().toJson(readings));
+        } catch (Exception ignored) {
+        }
+    }
 
     private static long maxAgeMs() {
         return MiBandEntry.getGraphHours() * 60L * 60 * 1000;
@@ -41,6 +77,7 @@ public class AapsGraphCache {
      * different broadcasts doesn't end up as two separate points.
      */
     public static synchronized void addReading(long timestampMs, double mgdl) {
+        ensureLoaded();
         Long nearestKey = nearestKeyWithin(timestampMs, DEDUP_WINDOW_MS);
         if (nearestKey != null) {
             if (nearestKey != timestampMs) {
@@ -61,6 +98,7 @@ public class AapsGraphCache {
         while (readings.size() > cap) {
             readings.remove(readings.firstKey());
         }
+        persist();
     }
 
     private static Long nearestKeyWithin(long timestampMs, long toleranceMs) {
@@ -79,14 +117,17 @@ public class AapsGraphCache {
     }
 
     public static synchronized GraphLine buildInRangeLine(double low, double high, boolean doMgdl) {
+        ensureLoaded();
         return buildLine(low, high, COLOR_IN_RANGE, doMgdl);
     }
 
     public static synchronized GraphLine buildLowLine(double low, boolean doMgdl) {
+        ensureLoaded();
         return buildLine(-Double.MAX_VALUE, low, COLOR_LOW, doMgdl);
     }
 
     public static synchronized GraphLine buildHighLine(double high, boolean doMgdl) {
+        ensureLoaded();
         return buildLine(high, Double.MAX_VALUE, COLOR_HIGH, doMgdl);
     }
 
@@ -119,10 +160,12 @@ public class AapsGraphCache {
     // out-of-range reading dots. Feed "graph.lowLine"/"graph.highLine",
     // rendered via BgGraphCompontens.lowLine()/highLine().
     public static synchronized GraphLine buildLowThresholdLine(double low, boolean doMgdl) {
+        ensureLoaded();
         return buildThresholdLine(low, COLOR_LOW, doMgdl);
     }
 
     public static synchronized GraphLine buildHighThresholdLine(double high, boolean doMgdl) {
+        ensureLoaded();
         return buildThresholdLine(high, COLOR_HIGH, doMgdl);
     }
 
@@ -144,14 +187,17 @@ public class AapsGraphCache {
     }
 
     public static synchronized boolean isEmpty() {
+        ensureLoaded();
         return readings.isEmpty();
     }
 
     public static synchronized long oldestTimestamp() {
+        ensureLoaded();
         return readings.isEmpty() ? 0 : readings.firstKey();
     }
 
     public static synchronized long newestTimestamp() {
+        ensureLoaded();
         return readings.isEmpty() ? 0 : readings.lastKey();
     }
 }
