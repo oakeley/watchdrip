@@ -52,7 +52,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
+
 import android.os.Build.VERSION;
+
 import static android.content.Context.ALARM_SERVICE;
 
 /**
@@ -428,23 +430,24 @@ public class Helper {
     public static String niceTimeScalar(long t) {
         String unit = HuamiXdrip.getAppContext().getString(R.string.unit_second);
         t = t / 1000;
-        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_seconds);
+        if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_seconds);
         if (t > 59) {
-            unit =  HuamiXdrip.getAppContext().getString(R.string.unit_minute);
+            unit = HuamiXdrip.getAppContext().getString(R.string.unit_minute);
             t = t / 60;
-            if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_minutes);
+            if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_minutes);
             if (t > 59) {
-                unit =  HuamiXdrip.getAppContext().getString(R.string.unit_hour);
+                unit = HuamiXdrip.getAppContext().getString(R.string.unit_hour);
                 t = t / 60;
-                if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_hours);
+                if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_hours);
                 if (t > 24) {
-                    unit =  HuamiXdrip.getAppContext().getString(R.string.unit_day);
+                    unit = HuamiXdrip.getAppContext().getString(R.string.unit_day);
                     t = t / 24;
-                    if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_days);
+                    if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_days);
                     if (t > 28) {
-                        unit =  HuamiXdrip.getAppContext().getString(R.string.unit_week);
+                        unit = HuamiXdrip.getAppContext().getString(R.string.unit_week);
                         t = t / 7;
-                        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_weeks);
+                        if (t != 1)
+                            unit = HuamiXdrip.getAppContext().getString(R.string.unit_weeks);
                     }
                 }
             }
@@ -456,23 +459,25 @@ public class Helper {
     public static String niceTimeScalarShortText(long t) {
         String unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_second);
         t = t / 1000;
-        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_seconds);
+        if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_seconds);
         if (t > 59) {
-            unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_minute);
+            unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_minute);
             t = t / 60;
-            if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_minutes);
+            if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_minutes);
             if (t > 59) {
-                unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_hour);
+                unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_hour);
                 t = t / 60;
-                if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_hours);
+                if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_hours);
                 if (t > 24) {
-                    unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_day);
+                    unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_day);
                     t = t / 24;
-                    if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_days);
+                    if (t != 1)
+                        unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_days);
                     if (t > 28) {
-                        unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_week);
+                        unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_week);
                         t = t / 7;
-                        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_short_weeks);
+                        if (t != 1)
+                            unit = HuamiXdrip.getAppContext().getString(R.string.unit_short_weeks);
                     }
                 }
             }
@@ -482,25 +487,26 @@ public class Helper {
     }
 
     public static String niceTimeScalar(double t, int digits) {
-        String unit =  HuamiXdrip.getAppContext().getString(R.string.unit_second);
+        String unit = HuamiXdrip.getAppContext().getString(R.string.unit_second);
         t = t / 1000;
-        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_seconds);
+        if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_seconds);
         if (t > 59) {
-            unit =  HuamiXdrip.getAppContext().getString(R.string.unit_minute);
+            unit = HuamiXdrip.getAppContext().getString(R.string.unit_minute);
             t = t / 60;
-            if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_minutes);
+            if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_minutes);
             if (t > 59) {
-                unit =  HuamiXdrip.getAppContext().getString(R.string.unit_hour);
+                unit = HuamiXdrip.getAppContext().getString(R.string.unit_hour);
                 t = t / 60;
-                if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_hours);
+                if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_hours);
                 if (t > 24) {
-                    unit =  HuamiXdrip.getAppContext().getString(R.string.unit_day);
+                    unit = HuamiXdrip.getAppContext().getString(R.string.unit_day);
                     t = t / 24;
-                    if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_days);
+                    if (t != 1) unit = HuamiXdrip.getAppContext().getString(R.string.unit_days);
                     if (t > 28) {
-                        unit =  HuamiXdrip.getAppContext().getString(R.string.unit_week);
+                        unit = HuamiXdrip.getAppContext().getString(R.string.unit_week);
                         t = t / 7;
-                        if (t != 1) unit =  HuamiXdrip.getAppContext().getString(R.string.unit_weeks);
+                        if (t != 1)
+                            unit = HuamiXdrip.getAppContext().getString(R.string.unit_weeks);
                     }
                 }
             }
@@ -573,7 +579,7 @@ public class Helper {
     }
 
     public static PowerManager.WakeLock getWakeLock(final String name, int millis) {
-        final PowerManager pm = (PowerManager)  HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
+        final PowerManager pm = (PowerManager) HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
         final PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, name);
         wl.acquire(millis);
         if (debug_wakelocks) Log.d(TAG, "getWakeLock: " + name + " " + wl.toString());
@@ -593,7 +599,7 @@ public class Helper {
     }
 
     public static PowerManager.WakeLock fullWakeLock(final String name, long millis) {
-        final PowerManager pm = (PowerManager)  HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
+        final PowerManager pm = (PowerManager) HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, name);
         wl.acquire(millis);
         if (debug_wakelocks) Log.d(TAG, "fullWakeLock: " + name + " " + wl.toString());
@@ -601,7 +607,7 @@ public class Helper {
     }
 
     public static boolean isScreenOn() {
-        final PowerManager pm = (PowerManager)  HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
+        final PowerManager pm = (PowerManager) HuamiXdrip.getAppContext().getSystemService(Context.POWER_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             return pm.isInteractive();
@@ -612,7 +618,7 @@ public class Helper {
 
     public static boolean isOngoingCall() {
         try {
-            AudioManager manager = (AudioManager)  HuamiXdrip.getAppContext().getSystemService(Context.AUDIO_SERVICE);
+            AudioManager manager = (AudioManager) HuamiXdrip.getAppContext().getSystemService(Context.AUDIO_SERVICE);
             return (manager.getMode() == AudioManager.MODE_IN_CALL);
             // possibly should have MODE_IN_COMMUNICATION as well
         } catch (Exception e) {
@@ -621,17 +627,17 @@ public class Helper {
     }
 
     public static boolean runOnUiThread(Runnable theRunnable) {
-        final Handler mainHandler = new Handler( HuamiXdrip.getAppContext().getMainLooper());
+        final Handler mainHandler = new Handler(HuamiXdrip.getAppContext().getMainLooper());
         return mainHandler.post(theRunnable);
     }
 
     public static boolean runOnUiThreadDelayed(Runnable theRunnable, long delay) {
-        final Handler mainHandler = new Handler( HuamiXdrip.getAppContext().getMainLooper());
+        final Handler mainHandler = new Handler(HuamiXdrip.getAppContext().getMainLooper());
         return mainHandler.postDelayed(theRunnable, delay);
     }
 
     public static void removeUiThreadRunnable(Runnable theRunnable) {
-        final Handler mainHandler = new Handler( HuamiXdrip.getAppContext().getMainLooper());
+        final Handler mainHandler = new Handler(HuamiXdrip.getAppContext().getMainLooper());
         mainHandler.removeCallbacks(theRunnable);
     }
 
@@ -703,11 +709,11 @@ public class Helper {
     }
 
     public static void static_toast_long(final String msg) {
-        static_toast( HuamiXdrip.getAppContext(), msg, Toast.LENGTH_LONG);
+        static_toast(HuamiXdrip.getAppContext(), msg, Toast.LENGTH_LONG);
     }
 
     public static void static_toast_short(final String msg) {
-        static_toast( HuamiXdrip.getAppContext(), msg, Toast.LENGTH_SHORT);
+        static_toast(HuamiXdrip.getAppContext(), msg, Toast.LENGTH_SHORT);
     }
 
     public static void static_toast_long(Context context, final String msg) {
@@ -766,7 +772,6 @@ public class Helper {
         }
         return false;
     }
-
 
 
     public static boolean isBluetoothEnabled(final Context context) {
@@ -897,6 +902,7 @@ public class Helper {
         crc.update(bytes, offset, length);
         return (int) (crc.getValue());
     }
+
     public static int parseIntWithDefault(String number, int radix, int defaultVal) {
         try {
             return Integer.parseInt(number, radix);
@@ -953,6 +959,7 @@ public class Helper {
         }
 
     }
+
     public static void cancelAlarm(Context context, PendingIntent serviceIntent) {
         // do we want a try catch block here?
         final AlarmManager alarm = (AlarmManager) context.getSystemService(ALARM_SERVICE);

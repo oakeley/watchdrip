@@ -15,16 +15,16 @@ public class WebServiceBgInfo {
     public long time;
     public boolean isStale;
 
-    public WebServiceBgInfo(BgData bgData,String lowRange,String inRange,String highRange) {
-      this.tir = inRange;
-      this.tirLow = lowRange;
-      this.tirHigh = highRange;
-      this.val = bgData.unitizedBgValue();
-      this.delta = bgData.unitizedDelta();
-      this.trend = bgData.getDeltaName();
-      this.isHigh = bgData.isBgHigh();
-      this.isLow = bgData.isBgLow();
-      this.time = bgData.getTimeStamp();
-      this.isStale = bgData.isStale();
+    public WebServiceBgInfo(BgData bgData, String lowRange, String inRange, String highRange) {
+        this.tir = inRange;
+        this.tirLow = lowRange;
+        this.tirHigh = highRange;
+        this.val = bgData.unitizedBgValue();
+        this.delta = bgData.unitizedDelta();
+        this.trend = bgData.getDeltaName();
+        this.isHigh = bgData.isBgHigh();
+        this.isLow = bgData.isBgLow();
+        this.time = bgData.getTimeStamp();
+        this.isStale = bgData.isStale();
     }
 }

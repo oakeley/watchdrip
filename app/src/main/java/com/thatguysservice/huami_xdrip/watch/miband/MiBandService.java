@@ -20,7 +20,6 @@ import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCA
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_REFRESH;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_UPDATE_BG_AS_NOTIFICATION;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_WATCHDOG;
-import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_XDRIP_APP_GOT_RESPONSE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_LOCAL_XDRIP_APP_NO_RESPONSE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_MESSAGE;
 import static com.thatguysservice.huami_xdrip.services.BroadcastService.CMD_REPLY_MSG;
@@ -36,7 +35,6 @@ import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_T
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_TYPE_CANCEL;
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.MIBAND_NOTIFY_TYPE_MESSAGE;
 import static com.thatguysservice.huami_xdrip.watch.miband.Const.PREFERRED_MTU_SIZE;
-import static com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry.isForceNewProtocol;
 import static com.thatguysservice.huami_xdrip.watch.miband.message.OperationCodes.COMMAND_ACK_FIND_PHONE_IN_PROGRESS;
 import static com.thatguysservice.huami_xdrip.watch.miband.message.OperationCodes.COMMAND_DISABLE_CALL;
 
@@ -47,18 +45,14 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.polidea.rxandroidble2.ConnectionParameters;
 import com.polidea.rxandroidble2.RxBleConnection;
 import com.polidea.rxandroidble2.RxBleDeviceServices;
@@ -72,6 +66,7 @@ import com.thatguysservice.huami_xdrip.models.Constants;
 import com.thatguysservice.huami_xdrip.models.DeviceInfo;
 import com.thatguysservice.huami_xdrip.models.Helper;
 import com.thatguysservice.huami_xdrip.models.StatisticInfo;
+import com.thatguysservice.huami_xdrip.models.TimeInRangeTracker;
 import com.thatguysservice.huami_xdrip.models.database.UserError;
 import com.thatguysservice.huami_xdrip.models.webservice.WebServiceData;
 import com.thatguysservice.huami_xdrip.repository.BgDataRepository;
@@ -108,8 +103,6 @@ import com.thatguysservice.huami_xdrip.webservice.WebServer;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -182,12 +175,7 @@ public class MiBandService extends BaseBluetoothSequencer {
     private WebServer webServer;
     private boolean isConnectionStopped = true;
 
-    long lastTimeTir=0;
-    private String isNormal="1";
-    ArrayList<String> dayValues=new ArrayList<String>();
-    boolean started=false;
-
-    private String inRange="0",lowRange="0",highRange="0";
+    private final TimeInRangeTracker tirTracker = new TimeInRangeTracker();
 
     private WebServer.CommonGatewayInterface CGI_getInfoResponse = new WebServer.CommonGatewayInterface() {
         @Override
@@ -203,7 +191,7 @@ public class MiBandService extends BaseBluetoothSequencer {
                     includeGraph = true;
                 }
             }
-            return new WebServiceData(bgDataLatest, latestBgDataBundle, includeGraph,lowRange,inRange,highRange).getGson();
+            return new WebServiceData(bgDataLatest, latestBgDataBundle, includeGraph, tirTracker.getLowRange(), tirTracker.getInRange(), tirTracker.getHighRange()).getGson();
         }
     };
 
@@ -315,7 +303,7 @@ public class MiBandService extends BaseBluetoothSequencer {
 
     @Override
     public void onDestroy() {
-        started=false;
+        tirTracker.reset();
         UserError.Log.e(TAG, "Killing service ");
         stopWebServer();
         super.onDestroy();
@@ -369,35 +357,7 @@ public class MiBandService extends BaseBluetoothSequencer {
         try {
             if (shouldServiceRun()) {
 
-                if(!started) {
-                    started = true;
-                    try {
-                        SharedPreferences prefs = this.getSharedPreferences("APP_DATA", Context.MODE_PRIVATE);
-                        Gson gson = new Gson();
-
-                        String json = prefs.getString("tirData", null);
-                        //Log.e("TIRDATA", "JSON VALUE " + json);
-                        Type type = new TypeToken<ArrayList<String>>() {
-                        }.getType();
-                        dayValues = gson.fromJson(json, type);
-                        if (dayValues == null)
-                            dayValues = new ArrayList<String>();
-                    } catch (Exception e) {
-                        dayValues = new ArrayList<String>();
-                    }
-                    if (dayValues.size() > 1)
-                        isNormal = dayValues.get(dayValues.size() - 1);
-                    else
-                        isNormal = "1";
-
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("ddMMyyyy");
-                    Date dateNow = new Date();
-                    String todayString = dateFormat.format(dateNow);
-                    if (dayValues.isEmpty() || (dayValues.size()>0 && !dayValues.get(0).equals(todayString))) {
-                        dayValues.clear();
-                        dayValues.add(todayString);
-                    }
-                }
+                tirTracker.loadIfNeeded();
 
                 String function = null;
                 if (intent != null) {
@@ -1814,123 +1774,14 @@ public class MiBandService extends BaseBluetoothSequencer {
         bgDataLatest = new BgData(bundle);
         bgDataRepository.setNewBgData(bgDataLatest);
         bgDataRepository.setNewConnectionState(HuamiXdrip.gs(R.string.xdrip_app_received_data));
-        try {
 
-            if(dayValues.size()>0) {
-                SimpleDateFormat dateFormat = new SimpleDateFormat("ddMMyyyy");
-                Date dateNow = new Date();
-                String todayString = dateFormat.format(dateNow);
-                if (!dayValues.get(0).equals(todayString)) {
-                    dayValues.clear();
-                    dayValues.add(todayString);
-                }
+        tirTracker.update(bgDataLatest);
 
-                long time = bgDataLatest.getTimeStamp();
-
-                if (lastTimeTir != time) {
-                    Date midnightTime = dateFormat.parse(todayString);
-                    long minutes = (dateNow.getTime() - midnightTime.getTime()) / 1000 / 60;
-                    while (dayValues.size() < minutes) {
-                        dayValues.add(isNormal);
-                    }
-                    boolean isHigh = bgDataLatest.isBgHigh();
-                    boolean isLow = bgDataLatest.isBgLow();
-
-                    if (isHigh)
-                        isNormal = "2";
-                    else if(isLow)
-                        isNormal = "0";
-                    else
-                        isNormal = "1";
-
-                    lastTimeTir = time;
-                    dayValues.add(isNormal);
-
-                    SharedPreferences prefs = this.getSharedPreferences("APP_DATA", Context.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = prefs.edit();
-
-                    Gson gson = new Gson();
-                    String json = gson.toJson(dayValues);
-
-                    editor.putString("tirData", json);
-                    editor.apply();
-                    int inRangeInt = 0;
-                    int lowRangeInt = 0;
-                    int highRangeInt = 0;
-                    int i = 1;
-                    while (i < dayValues.size()) {
-                        String value = dayValues.get(i++);
-                        if (value.equals("1"))
-                            inRangeInt++;
-                        else if(value.equals("0"))
-                            lowRangeInt++;
-                        else if(value.equals("2"))
-                            highRangeInt++;
-                    }
-
-                    //Log.e("TIRDATA", "IN Range " + inRangeInt);
-                    //Log.e("TIRDATA", "Size " + (valoresDia.size() - 1));
-                    if(inRangeInt>0) {
-                        inRangeInt = (int) Math.ceil(((double) 100 / ((double) dayValues.size() - 1)) * (double) inRangeInt);
-                        if (inRangeInt > 100)
-                            inRangeInt = 100;
-                    }
-                    if(inRangeInt<100) {
-                        if(lowRangeInt>0 && highRangeInt==0) {
-                            lowRangeInt = 100 - inRangeInt;
-                        }
-                        else if(highRangeInt>0 && lowRangeInt==0) {
-                            highRangeInt = 100 - inRangeInt;
-                        }
-                        else if(lowRangeInt>0 && highRangeInt>0)
-                        {
-                            if(highRangeInt>=lowRangeInt) {
-                                int highRangeIntpercent = (int) Math.round(((double) 100 / ((double) dayValues.size() - 1)) * (double) highRangeInt);
-                                if (highRangeIntpercent + inRangeInt >= 100) {
-                                    highRangeIntpercent = (int) Math.floor(((double) 100 / ((double) dayValues.size() - 1)) * (double) highRangeInt);
-                                    if (highRangeIntpercent + inRangeInt >= 100) {
-                                        highRangeIntpercent = 100 - inRangeInt;
-                                    }
-                                }
-                                highRangeInt=highRangeIntpercent;
-                                lowRangeInt=100-inRangeInt-highRangeInt;
-                            }
-                            else
-                            {
-                                int lowRangeIntpercent = (int) Math.round(((double) 100 / ((double) dayValues.size() - 1)) * (double) lowRangeInt);
-                                if (lowRangeIntpercent + inRangeInt >= 100) {
-                                    lowRangeIntpercent = (int) Math.floor(((double) 100 / ((double) dayValues.size() - 1)) * (double) lowRangeInt);
-                                    if (lowRangeIntpercent + inRangeInt >= 100) {
-                                        lowRangeIntpercent = 100 - inRangeInt;
-                                    }
-                                }
-                                lowRangeInt=lowRangeIntpercent;
-                                highRangeInt=100-inRangeInt-lowRangeInt;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        highRangeInt=0;
-                        lowRangeInt=0;
-                    }
-                    Log.e("TIRDATA", "IN Range " + inRangeInt);
-                    Log.e("TIRDATA", "LOW Range " + lowRangeInt);
-                    Log.e("TIRDATA", "HIGH Range " + highRangeInt);
-
-                    //inRangeInt = (int) Math.round(((double) 100 / ((double) 1440)) * (double) inRangeInt);
-                    inRange = "" + inRangeInt;
-                    lowRange = "" + lowRangeInt;
-                    highRange = "" + highRangeInt;
-                    if (!forceXiaomiService && isNightMode) {
-                        return;
-                    }
-                }
-            }
-        } catch (Exception e) {
-
+        if (!forceXiaomiService && isNightMode) {
+            return;
         }
-        String jsonString=new WebServiceData(bgDataLatest, latestBgDataBundle, true,lowRange,inRange,highRange).getGson();
+
+        String jsonString = new WebServiceData(bgDataLatest, latestBgDataBundle, true, tirTracker.getLowRange(), tirTracker.getInRange(), tirTracker.getHighRange()).getGson();
         GarminService.bgForce(jsonString);
         XiaomiWearService.bgForce(jsonString);
     }
