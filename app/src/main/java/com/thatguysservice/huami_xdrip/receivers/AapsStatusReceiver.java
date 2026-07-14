@@ -102,10 +102,11 @@ public class AapsStatusReceiver extends BroadcastReceiver {
             // those are xDrip+'s own computed predictions, not something AAPS
             // broadcasts directly, and DisplayData/WebServiceTreatment already
             // handle them being absent gracefully.
-            if (AapsTreatmentCache.getTimestamp() > 0) {
+            if (!AapsTreatmentCache.isEmpty()) {
                 bgBundle.putDouble("treatment.insulin", AapsTreatmentCache.getInsulin());
                 bgBundle.putDouble("treatment.carbs", AapsTreatmentCache.getCarbs());
                 bgBundle.putLong("treatment.timeStamp", AapsTreatmentCache.getTimestamp());
+                bgBundle.putParcelable("graph.treatment", AapsTreatmentCache.buildTreatmentLine(low, high, doMgdl));
             }
 
             UserError.Log.d(TAG, "Received AAPS status broadcast, BG: " + valueMgdl);

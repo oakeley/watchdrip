@@ -34,7 +34,7 @@ android {
         targetSdk 31
 
         // Note: always bump BOTH versionCode and versionName!
-        versionName "0.5.0_b2"
+        versionName "0.5.0"
         versionCode 30
         buildConfigField "long", "buildTimestamp", generateTimestamp()
         buildConfigField "int", "targetSDK", targetSdkVersion.mApiLevel.toString()
