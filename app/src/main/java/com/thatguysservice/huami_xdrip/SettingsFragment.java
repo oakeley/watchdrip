@@ -25,6 +25,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.TwoStatePreference;
 
 import com.thatguysservice.huami_xdrip.UtilityModels.Inevitable;
+import com.thatguysservice.huami_xdrip.models.GarminConnectionStatus;
 import com.thatguysservice.huami_xdrip.models.PersistantDeviceInfo;
 import com.thatguysservice.huami_xdrip.models.PersistantDevices;
 import com.thatguysservice.huami_xdrip.models.Pref;
@@ -47,6 +48,29 @@ import static com.thatguysservice.huami_xdrip.watch.miband.MiBandEntry.PREF_ENAB
 
 public class SettingsFragment extends PreferenceFragmentCompat {
 
+    // Live status line appended to the Garmin toggle's summary - see
+    // GarminConnectionStatus for how/when it gets updated.
+    private void updateGarminStatusSummary() {
+        if (garminServicePref == null) {
+            return;
+        }
+        if (!MiBandEntry.isGarminServiceEnabled()) {
+            garminServicePref.setSummary(getString(R.string.summary_enable_garmin_service));
+            return;
+        }
+        String status;
+        long lastAckTimeMs = GarminConnectionStatus.getLastAckTimeMs();
+        if (GarminConnectionStatus.isConnected()) {
+            status = getString(R.string.garmin_status_connected);
+        } else if (lastAckTimeMs > 0) {
+            long minutesAgo = (System.currentTimeMillis() - lastAckTimeMs) / 60000;
+            status = getString(R.string.garmin_status_not_connected_last_seen, minutesAgo);
+        } else {
+            status = getString(R.string.garmin_status_connecting);
+        }
+        garminServicePref.setSummary(getString(R.string.summary_enable_garmin_service) + "\n" + status);
+    }
+
     private void updateAdvancedMenuVisibility(){
         boolean xiaomiService = Pref.getBooleanDefaultFalse(MiBandEntry.PREF_ENABLE_XIAOMI_SERVICE);
         boolean serviceEnabled = Pref.getBooleanDefaultFalse(MiBandEntry.PREF_MIBAND_ENABLED);
@@ -68,6 +92,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             if (key.startsWith("miband_enable")) {
                 updateAdvancedMenuVisibility();
             }
+            if (key.startsWith(GarminConnectionStatus.PREF_PREFIX) || key.equals(MiBandEntry.PREF_ENABLE_GARMIN_SERVICE)) {
+                updateGarminStatusSummary();
+            }
 
         }
     };
@@ -76,6 +103,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private TwoStatePreference deviceEnabledPref;
     private TwoStatePreference webServerEnabledPref;
     private TwoStatePreference xiaomiServerEnabledPref;
+    private TwoStatePreference garminServicePref;
     private ListPreference activeDevicePref;
 
     private Preference advancedPreferenseMenu;
@@ -139,6 +167,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         deviceEnabledPref = findPreference(MiBandEntry.PREF_MIBAND_ENABLE_DEVICE);
         webServerEnabledPref = findPreference(PREF_ENABLE_WEB_SERVER);
         xiaomiServerEnabledPref = findPreference(MiBandEntry.PREF_ENABLE_XIAOMI_SERVICE);
+        garminServicePref = findPreference(MiBandEntry.PREF_ENABLE_GARMIN_SERVICE);
         advancedPreferenseMenu = findPreference("advanced_pref");
         servicePref.setOnPreferenceChangeListener((preference, newValue) -> prefEnableCallback(preference, (Boolean) newValue));
         deviceEnabledPref.setOnPreferenceChangeListener((preference, newValue) -> prefEnableCallback(preference, (Boolean) newValue));
@@ -170,6 +199,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         });
         setListPreferenceData();
 
+        updateGarminStatusSummary();
         updateAdvancedMenuVisibility();
         updateListPreferenceVisibility();
     }
@@ -300,6 +330,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     public void onResume() {
         super.onResume();
         getPreferenceManager().getSharedPreferences().registerOnSharedPreferenceChangeListener(prefListener);
+        updateGarminStatusSummary();
         if (MiBandEntry.isDeviceEnabled() && !checkAndRequestBTPermissions()) {
             setDevicePref(false);
         }

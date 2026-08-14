@@ -64,6 +64,7 @@ import com.thatguysservice.huami_xdrip.R;
 import com.thatguysservice.huami_xdrip.models.BgData;
 import com.thatguysservice.huami_xdrip.models.Constants;
 import com.thatguysservice.huami_xdrip.models.DeviceInfo;
+import com.thatguysservice.huami_xdrip.models.GarminConnectionStatus;
 import com.thatguysservice.huami_xdrip.models.Helper;
 import com.thatguysservice.huami_xdrip.models.StatisticInfo;
 import com.thatguysservice.huami_xdrip.models.TimeInRangeTracker;
@@ -233,6 +234,32 @@ public class MiBandService extends BaseBluetoothSequencer {
                 throw new TimeoutException("Timed out after waiting response from xdrip " + CGI_WAIT_TIMEOUT + " mseconds");
             }
             throw new Exception("Parameters not specified");
+        }
+    };
+
+    // Hit by the Garmin watch app right after it successfully processes a
+    // BG push, over the same Garmin-Connect-proxied-localhost HTTP channel
+    // GarminSugar already uses (Communications.makeWebRequest to
+    // http://127.0.0.1:29863/...). This is the ack that drives the
+    // "Connected"/"Not connected" line in Settings - see GarminConnectionStatus.
+    private WebServer.CommonGatewayInterface CGI_garminAck = new WebServer.CommonGatewayInterface() {
+        @Override
+        public String run(Map<String, List<String>> params) {
+            GarminConnectionStatus.recordAck();
+            return "OK";
+        }
+    };
+
+    // Hit by the Garmin watch app's tap-to-reset gesture. Forces an
+    // immediate re-push of the current data (same payload /info.json
+    // already serves) rather than waiting for the next natural reading, so
+    // reconnection is visible right away.
+    private WebServer.CommonGatewayInterface CGI_garminReset = new WebServer.CommonGatewayInterface() {
+        @Override
+        public String run(Map<String, List<String>> params) throws Exception {
+            UserError.Log.d(TAG, "CGI_garminReset - forcing resend to Garmin watch");
+            GarminService.bgForce(CGI_getInfoResponse.run(params));
+            return "OK";
         }
     };
 
@@ -477,13 +504,18 @@ public class MiBandService extends BaseBluetoothSequencer {
         return true;
     }
 
+    // Runs whenever "Enable web server" is on (Zepp OS pull) OR "Enable
+    // Garmin Service" is on (the Garmin watch app's ack/reset endpoints
+    // below need it too, regardless of the Zepp-specific toggle).
     private void updateWebServer() {
-        if (MiBandEntry.isWebServerEnabled()) {
+        if (MiBandEntry.isWebServerEnabled() || MiBandEntry.isGarminServiceEnabled()) {
             if (webServer == null) {
                 try {
                     webServer = new WebServer();
                     webServer.registerCGI("/info.json", CGI_getInfoResponse);
                     webServer.registerCGI("/add_treatments", CGI_addTreatments);
+                    webServer.registerCGI("/garmin_ack", CGI_garminAck);
+                    webServer.registerCGI("/garmin_reset", CGI_garminReset);
                     webServer.start();
                     UserError.Log.d(TAG, "WebServer started");
                 } catch (Exception e) {

@@ -27,7 +27,7 @@ import org.json.JSONObject;
 public class GarminService extends Service {
 
     protected String TAG = this.getClass().getSimpleName();
-    private static final int SEND_DELAY = (int) (Constants.SECOND_IN_MS * 10);
+    private static final int FAST_RETRY_DELAY = (int) (Constants.SECOND_IN_MS * 3);
 
     private ForegroundServiceStarter foregroundServiceStarter;
     private final GarminConnectIqClient connectIqClient = new GarminConnectIqClient();
@@ -48,10 +48,14 @@ public class GarminService extends Service {
         }
     }
 
-    private void setRetryTimer() {
+    // Used after a known send failure (SDK not ready, device not connected,
+    // send error) - retries sooner than the normal cadence since we have a
+    // concrete reason to believe the next attempt might succeed shortly
+    // (e.g. SDK finishes initializing, BLE reconnects).
+    private void setFastRetryTimer() {
         if (shouldServiceRun()) {
             retryIntent = WakeLockTrampoline.getPendingIntent(this.getClass(), Constants.GARMIN_SERVICE_RETRY_ID, CMD_UPDATE_BG_FORCE);
-            Helper.wakeUpIntent(HuamiXdrip.getAppContext(), SEND_DELAY, retryIntent);
+            Helper.wakeUpIntent(HuamiXdrip.getAppContext(), FAST_RETRY_DELAY, retryIntent);
         }
     }
 
@@ -87,15 +91,13 @@ public class GarminService extends Service {
                     cancelRetryTimer();
                 } else {
                     UserError.Log.d(TAG, "retry send last data GARMIN");
-                    updateWearBg(pendingJson);
                     cancelRetryTimer();
-                    setRetryTimer();
+                    updateWearBg(pendingJson);
                 }
                 break;
             case CMD_UPDATE_BG:
                 pendingJson = intentIn.getStringExtra("json");
                 cancelRetryTimer();
-                setRetryTimer();
                 updateWearBg(pendingJson);
                 break;
             default:
@@ -118,10 +120,20 @@ public class GarminService extends Service {
 
             List<Object> message = new ArrayList<>();
             message.add(jsonString);
-            connectIqClient.sendToConnectedDevices(message, () -> {
-                lastSentTime = time;
-                pendingJson = "";
-                cancelRetryTimer();
+            connectIqClient.sendToConnectedDevices(message, new GarminConnectIqClient.MessageSentListener() {
+                @Override
+                public void onMessageSent() {
+                    lastSentTime = time;
+                    pendingJson = "";
+                    cancelRetryTimer();
+                }
+
+                @Override
+                public void onMessageFailed(String reason) {
+                    UserError.Log.d(TAG, "Send failed, will retry: " + reason);
+                    cancelRetryTimer();
+                    setFastRetryTimer();
+                }
             });
         } catch (Exception e) {
             UserError.Log.e(TAG, "Exception: " + e.getMessage());

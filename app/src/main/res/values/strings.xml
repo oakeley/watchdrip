@@ -166,6 +166,9 @@ Additional thanks to all patrons for supporting this project and making it possi
     <string name="title_enable_xiaomi_service">Enable Xiaomi Service</string>
     <string name="summary_enable_garmin_service">Allows to communicate with Garmin ConnectIQ based devices</string>
     <string name="title_enable_garmin_service">Enable Garmin Service</string>
+    <string name="garmin_status_connected">Watch connected</string>
+    <string name="garmin_status_connecting">Connecting to watch…</string>
+    <string name="garmin_status_not_connected_last_seen">Not connected to watch (last seen %1$d min ago)</string>
     <string name="action_add_device">Add device</string>
     <string name="action_remove_device">Remove device</string>
     <string name="title_enable_device">Enable device</string>

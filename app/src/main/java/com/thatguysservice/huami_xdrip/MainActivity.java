@@ -24,7 +24,6 @@ import androidx.lifecycle.Observer;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.thatguysservice.huami_xdrip.databinding.ActivityMainBinding;
 import com.thatguysservice.huami_xdrip.models.BgData;
@@ -216,8 +215,6 @@ public class MainActivity extends AppCompatActivity implements
         }
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        CollapsingToolbarLayout toolBarLayout = findViewById(R.id.toolbar_layout);
-        toolBarLayout.setTitle(getTitle());
 
         handleFragmentBackButton(toolbar);
 
